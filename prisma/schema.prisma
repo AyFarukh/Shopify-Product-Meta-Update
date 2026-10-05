@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Shop {
+  id          String   @id @default(cuid())
+  shopDomain  String   @unique
+  accessToken String
+  scopes      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  products    Product[]
+  scanJobs    ScanJob[]
+  updateJobs  UpdateJob[]
+  rules       VendorRule[]
+  aliases     VendorAlias[]
+  settings    AppSettings?
+}
+
+model Product {
+  id               String   @id @default(cuid())
+  shopId           String
+  shop             Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shopifyGid       String
+  handle           String
+  title            String
+  currentVendor    String
+  productType      String?
+  status           String?
+  shopifyUpdatedAt DateTime?
+  syncedAt         DateTime @default(now())
+  suggestion       VendorSuggestion?
+  updateRecords    UpdateRecord[]
+  @@unique([shopId, shopifyGid])
+  @@index([shopId, title])
+  @@index([shopId, currentVendor])
+}
+
+model VendorSuggestion {
+  id              String   @id @default(cuid())
+  productId       String   @unique
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  suggestedVendor String?
+  confidence      Int
+  reason          String
+  source          String
+  status          String
+  approved        Boolean  @default(false)
+  rejected        Boolean  @default(false)
+  manual          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([status])
+  @@index([suggestedVendor])
+}
+
+model VendorRule {
+  id         String   @id @default(cuid())
+  shopId     String
+  shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  name       String
+  matchType  String
+  matchValue String
+  vendor     String
+  priority   Int      @default(100)
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  @@index([shopId, priority])
+}
+
+model VendorAlias {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  alias     String
+  vendor    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([shopId, alias])
+}
+
+model ScanJob {
+  id         String   @id @default(cuid())
+  shopId     String
+  shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  type       String   @default("SCAN")
+  status     String   @default("QUEUED")
+  total      Int      @default(0)
+  processed  Int      @default(0)
+  successful Int      @default(0)
+  failed     Int      @default(0)
+  error      String?
+  createdAt  DateTime @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+}
+
+model UpdateJob {
+  id         String   @id @default(cuid())
+  shopId     String
+  shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  type       String   @default("UPDATE")
+  status     String   @default("QUEUED")
+  total      Int      @default(0)
+  processed  Int      @default(0)
+  successful Int      @default(0)
+  failed     Int      @default(0)
+  error      String?
+  createdAt  DateTime @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+  records    UpdateRecord[]
+}
+
+model UpdateRecord {
+  id             String    @id @default(cuid())
+  updateJobId    String
+  updateJob      UpdateJob @relation(fields: [updateJobId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productGid     String
+  productTitle   String
+  previousVendor String
+  newVendor      String
+  result         String
+  error          String?
+  undoneAt       DateTime?
+  createdAt      DateTime  @default(now())
+  @@index([updateJobId])
+  @@index([productGid])
+}
+
+model AppSettings {
+  id                   String @id @default(cuid())
+  shopId               String @unique
+  shop                 Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  genericVendorsJson   String @default("[\"Dubailist.com\",\"Unknown\",\"Generic\",\"No Vendor\",\"N/A\",\"\"]")
+  autoApproveThreshold Int    @default(90)
+  pageSize             Int    @default(25)
+}
