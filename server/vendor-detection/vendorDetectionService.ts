@@ -1,4 +1,10 @@
-import { DEFAULT_ALIASES, DEFAULT_KNOWN_VENDORS, GENERIC_WORDS } from './vendors.js';
+import {
+  DEFAULT_ALIASES,
+  DEFAULT_KNOWN_VENDORS,
+  GENERIC_WORDS,
+  QUANTITY_PREFIX_WORDS,
+  UNIT_WORDS,
+} from './vendors.js';
 import { normalizeProductTitle } from './normalizeProductTitle.js';
 
 export type DetectionStatus = 'HIGH_CONFIDENCE'|'REVIEW_RECOMMENDED'|'REVIEW_REQUIRED'|'NO_VENDOR_FOUND'|'ALREADY_CORRECT'|'CONFLICT';
@@ -9,6 +15,9 @@ export type DetectionContext = { knownVendors?: string[]; aliases?: Record<strin
 const boundaries = (value: string) => new RegExp(`(^|\\b)${value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(?=\\b|$)`, 'i');
 const canon = (s: string) => s.trim().replace(/\s+/g,' ');
 const eq = (a?: string|null,b?: string|null) => canon(a||'').localeCompare(canon(b||''), undefined, {sensitivity:'accent'})===0;
+const cleanToken = (value: string) => value.replace(/^[.-]+|[.-]+$/g, '');
+const isInteger = (value: string) => /^\d+$/.test(value);
+const isNumericUnit = (value: string) => /^\d+(?:\.\d+)?(?:ml|l|g|kg|oz|cm|mm|inch|in|pcs|pc)?$/i.test(value);
 
 function applyRule(title: string, rules: VendorRuleInput[]): string|null {
   for (const rule of [...rules].filter(r=>r.enabled!==false).sort((a,b)=>(b.priority??100)-(a.priority??100))) {
@@ -21,6 +30,36 @@ function applyRule(title: string, rules: VendorRuleInput[]): string|null {
     if (matched) return canon(rule.vendor);
   }
   return null;
+}
+
+function buildFallbackVendor(title: string): string|null {
+  const tokens = title
+    .split(/\s+/)
+    .map(cleanToken)
+    .filter(Boolean);
+
+  while (tokens.length && (isInteger(tokens[0]) || isNumericUnit(tokens[0]))) tokens.shift();
+
+  const meaningful: string[] = [];
+
+  for (let index = 0; index < tokens.length && meaningful.length < 2; index++) {
+    const token = tokens[index];
+    const lower = token.toLowerCase();
+
+    if (isInteger(token) || isNumericUnit(token) || UNIT_WORDS.has(lower)) continue;
+    if (GENERIC_WORDS.has(lower)) continue;
+
+    // Quantity prefixes are normally ignored. "Pair" is retained when no known
+    // brand was found because titles such as "1 Pair Stainless Steel..." use
+    // Pair + the next descriptive word as the requested fallback identity.
+    if (QUANTITY_PREFIX_WORDS.has(lower) && lower !== 'pair') continue;
+
+    meaningful.push(token);
+  }
+
+  if (!meaningful.length) return null;
+  if (meaningful.length === 1) return meaningful[0];
+  return `${meaningful[0]}-${meaningful[1]}`;
 }
 
 export function detectVendor(title: string, currentVendor = '', context: DetectionContext = {}): DetectionResult {
@@ -45,16 +84,20 @@ export function detectVendor(title: string, currentVendor = '', context: Detecti
     return finish(vendor, 98, 'Known vendor matched in product title', vendor.includes(' ')?'multi_word_vendor':'known_vendor', current, currentIsGeneric);
   }
 
-  if (!currentIsGeneric && boundaries(current).test(normalized)) {
-    return { vendor: current, confidence: 95, reason: 'Existing Shopify vendor matches product title', source: 'existing_vendor', status: 'ALREADY_CORRECT' };
+  const fallback = buildFallbackVendor(normalized);
+  if (fallback) {
+    const confidence = fallback.includes('-') ? 72 : 65;
+    return finish(
+      fallback,
+      confidence,
+      'No known brand matched; vendor derived from the first meaningful title word(s)',
+      'title_fallback',
+      current,
+      currentIsGeneric,
+    );
   }
 
-  const firstMeaningful = normalized.split(/\s+/).find(w => w.length > 1 && !GENERIC_WORDS.has(w.toLowerCase()) && !/^\d/.test(w));
-  if (firstMeaningful && !currentIsGeneric && eq(firstMeaningful,current)) {
-    return { vendor: current, confidence: 90, reason: 'Existing valid vendor is supported by safe title analysis', source: 'safe_title_analysis', status: 'ALREADY_CORRECT' };
-  }
-
-  return { vendor: null, confidence: 0, reason: 'No reliable vendor match found; manual review required', source: 'manual_review', status: 'NO_VENDOR_FOUND' };
+  return { vendor: null, confidence: 0, reason: 'No meaningful vendor candidate found in product title', source: 'manual_review', status: 'NO_VENDOR_FOUND' };
 }
 
 function finish(vendor: string, confidence: number, reason: string, source: string, current: string, currentIsGeneric: boolean): DetectionResult {
