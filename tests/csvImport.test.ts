@@ -44,13 +44,15 @@ describe('Shopify ZIP/CSV import pipeline', () => {
   it('extracts ZIP, groups duplicate Handle rows, detects vendors from title, previews, and exports corrected CSV', async () => {
     const csv = [
       'Handle,Title,Vendor,Variant SKU',
-      'fila-jogger,SIZE XS - Fila Women French Terry Jogger,Dubailist.com,FILA-XS',
+      'fila-jogger,10 Pcs Fila Socks,Dubailist.com,FILA-XS',
       'fila-jogger,,,FILA-S',
-      'elizabeth-foundation,Elizabeth Arden Flawless Finish Foundation,Unknown,EA-1',
-      'tom-ford-blush,Tom Ford Cream Blush,Unknown,TF-1',
+      'dove-soap,2 Pack Dove Soap,Unknown,DOVE-1',
+      'elizabeth-foundation,5 Pcs Elizabeth Arden Lipstick,Unknown,EA-1',
+      'tom-ford-blush,1 Set Tom Ford Makeup,Unknown,TF-1',
       'ysl-lipstick,YSL Yves Saint Laurent Slim Velvet Lipstick,Unknown,YSL-1',
-      'green-hill-gloves,Green Hill MMA Gloves Iron,Unknown,GH-1',
+      'green-hill-gloves,3 Pair Green Hill Boxing Gloves,Unknown,GH-1',
       'shock-mouthguard,Shock Doctor Adult Gel Nano Mouthguard,Unknown,SD-1',
+      'pair-earring,1 Pair Stainless Steel Ear Buckle Earrings For Women Steel-Color Fadeless Hypoallergenic Hoop Earring Jewelry,Unknown,PAIR-1',
     ].join('\n');
 
     const zipPath = await makeZip(csv);
@@ -62,8 +64,8 @@ describe('Shopify ZIP/CSV import pipeline', () => {
       originalFileName: 'shopify-products.zip',
     });
 
-    expect(batch.totalRows).toBe(7);
-    expect(batch.uniqueProducts).toBe(6);
+    expect(batch.totalRows).toBe(9);
+    expect(batch.uniqueProducts).toBe(8);
     expect(batch.duplicateRows).toBe(1);
 
     const products = await prisma.importProduct.findMany({
@@ -73,11 +75,13 @@ describe('Shopify ZIP/CSV import pipeline', () => {
     const byHandle = Object.fromEntries(products.map((product) => [product.handle, product]));
 
     expect(byHandle['fila-jogger'].suggestedVendor).toBe('Fila');
+    expect(byHandle['dove-soap'].suggestedVendor).toBe('Dove');
     expect(byHandle['elizabeth-foundation'].suggestedVendor).toBe('Elizabeth Arden');
     expect(byHandle['tom-ford-blush'].suggestedVendor).toBe('Tom Ford');
     expect(byHandle['ysl-lipstick'].suggestedVendor).toBe('Yves Saint Laurent');
     expect(byHandle['green-hill-gloves'].suggestedVendor).toBe('Green Hill');
     expect(byHandle['shock-mouthguard'].suggestedVendor).toBe('Shock Doctor');
+    expect(byHandle['pair-earring'].suggestedVendor).toBe('Pair-Stainless');
     expect(byHandle['fila-jogger'].confidence).toBeGreaterThanOrEqual(90);
 
     await prisma.importProduct.update({
