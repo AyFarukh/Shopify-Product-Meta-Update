@@ -11,5 +11,14 @@ export const DEFAULT_ALIASES: Record<string, string> = {
 
 export const GENERIC_WORDS = new Set([
   'new','original','premium','size','small','medium','large','women','womens','men','mens','kids','baby',
-  'black','white','red','blue','pack','set','wireless','fashion','classic','professional','universal',
+  'black','white','red','blue','wireless','fashion','classic','professional','universal',
+  'for','with','and','the','a','an','of','to','by',
+]);
+
+export const QUANTITY_PREFIX_WORDS = new Set([
+  'pair','pack','packs','pcs','pc','piece','pieces','set','sets','qty','quantity','size',
+]);
+
+export const UNIT_WORDS = new Set([
+  'ml','l','g','kg','oz','cm','mm','inch','in','pcs','pc',
 ]);
