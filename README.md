@@ -111,3 +111,44 @@ feature/vendor-title-update-app
 ```
 
 Do not merge into `main` until the app has been reviewed and tested on a Shopify development store.
+
+
+## ZIP / CSV Shopify export workflow
+
+The app can analyze Shopify product exports even when Shopify is not connected.
+
+Supported uploads:
+
+- Shopify product `.csv`
+- `.zip` containing a Shopify product CSV
+- Maximum uploaded/extracted CSV size: 250 MB
+
+Required CSV columns:
+
+- `Handle`
+- `Title`
+- `Vendor`
+
+Processing rules:
+
+1. ZIP entries are streamed and never extracted using their original filesystem path.
+2. Unsafe ZIP paths and oversized extracted CSV files are rejected.
+3. CSV is parsed as a stream.
+4. Variant rows sharing the same `Handle` are grouped into one product record.
+5. Vendor detection is based on `Title`, including multi-word brands.
+6. The preview shows Current Vendor, Suggested Vendor, Confidence, and Status.
+7. Manual corrections and bulk approval are supported.
+8. In CSV-only mode, approved values can be exported as a corrected Shopify CSV while preserving the other original CSV columns.
+9. With Shopify connected, approved rows are matched by Handle to a Shopify Product GID and only `product.vendor` is updated.
+10. The live Shopify Vendor is read before update and stored as the exact undo/history value.
+
+After pulling schema changes locally, run:
+
+```bash
+npm install
+npm run prisma:generate
+npx prisma db push
+npm run dev
+```
+
+Shopify credentials are optional for CSV-only analysis. They are required only for OAuth, product sync, and applying updates to Shopify.
