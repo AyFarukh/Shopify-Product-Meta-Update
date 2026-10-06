@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type { Request } from 'express';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -34,7 +35,7 @@ const upload = multer({
   },
 });
 
-function importKey(req: Parameters<typeof assertImportAccess>[0] extends never ? never : import('express').Request) {
+function importKey(req: Request) {
   return String(req.header('x-import-key') || '');
 }
 
@@ -154,11 +155,22 @@ importsRouter.post('/imports/:id/approve', async (req, res, next) => {
     const where = {
       importBatchId: batch.id,
       ...(body.ids?.length && !body.allFiltered ? { id: { in: body.ids } } : {}),
-      ...(body.allFiltered && body.q ? { OR: [{ title: { contains: body.q } }, { handle: { contains: body.q } }, { currentVendor: { contains: body.q } }, { suggestedVendor: { contains: body.q } }] } : {}),
       ...(body.allFiltered && body.status ? { status: body.status } : {}),
-      OR: [
-        { manual: true },
-        { status: { in: ['HIGH_CONFIDENCE', 'REVIEW_RECOMMENDED'] } },
+      AND: [
+        ...(body.allFiltered && body.q ? [{
+          OR: [
+            { title: { contains: body.q } },
+            { handle: { contains: body.q } },
+            { currentVendor: { contains: body.q } },
+            { suggestedVendor: { contains: body.q } },
+          ],
+        }] : []),
+        {
+          OR: [
+            { manual: true },
+            { status: { in: ['HIGH_CONFIDENCE', 'REVIEW_RECOMMENDED'] } },
+          ],
+        },
       ],
     };
 
