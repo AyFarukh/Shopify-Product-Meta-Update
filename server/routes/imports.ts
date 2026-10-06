@@ -75,7 +75,7 @@ importsRouter.post('/imports/upload', optionalShopifySession, upload.single('fil
 
 importsRouter.get('/imports/:id/products', async (req, res, next) => {
   try {
-    const batch = await assertImportAccess(req.params.id, importKey(req));
+    const batch = await assertImportAccess(String(req.params.id), importKey(req));
     const page = Math.max(1, Number(req.query.page) || 1);
     const pageSize = [25, 50, 100].includes(Number(req.query.pageSize)) ? Number(req.query.pageSize) : 25;
     const q = String(req.query.q || '').trim();
@@ -115,10 +115,10 @@ importsRouter.get('/imports/:id/products', async (req, res, next) => {
 
 importsRouter.patch('/imports/:id/products/:productId', async (req, res, next) => {
   try {
-    const batch = await assertImportAccess(req.params.id, importKey(req));
+    const batch = await assertImportAccess(String(req.params.id), importKey(req));
     const body = z.object({ suggestedVendor: z.string().trim().min(1).max(255) }).parse(req.body);
     const product = await prisma.importProduct.findFirstOrThrow({
-      where: { id: req.params.productId, importBatchId: batch.id },
+      where: { id: String(req.params.productId), importBatchId: batch.id },
     });
     res.json(await prisma.importProduct.update({
       where: { id: product.id },
@@ -139,7 +139,7 @@ importsRouter.patch('/imports/:id/products/:productId', async (req, res, next) =
 
 importsRouter.post('/imports/:id/approve', async (req, res, next) => {
   try {
-    const batch = await assertImportAccess(req.params.id, importKey(req));
+    const batch = await assertImportAccess(String(req.params.id), importKey(req));
     const body = z.object({
       ids: z.array(z.string()).optional(),
       allFiltered: z.boolean().optional().default(false),
@@ -186,7 +186,7 @@ importsRouter.post('/imports/:id/approve', async (req, res, next) => {
 
 importsRouter.get('/imports/:id/export', async (req, res, next) => {
   try {
-    const batch = await assertImportAccess(req.params.id, importKey(req));
+    const batch = await assertImportAccess(String(req.params.id), importKey(req));
     const safeName = path.basename(batch.originalFileName).replace(/\.(zip|csv)$/i, '');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}-corrected.csv"`);
@@ -199,7 +199,7 @@ importsRouter.get('/imports/:id/export', async (req, res, next) => {
 
 importsRouter.post('/imports/:id/update-shopify', requireShopifySession, async (req, res, next) => {
   try {
-    const batch = await assertImportAccess(req.params.id, importKey(req));
+    const batch = await assertImportAccess(String(req.params.id), importKey(req));
     const body = z.object({
       ids: z.array(z.string()).optional(),
       confirmed: z.literal(true),
