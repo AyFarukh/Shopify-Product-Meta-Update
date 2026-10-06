@@ -4,8 +4,10 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { requireShopifySession } from '../middleware/shopifyAuth.js';
 import { startSyncJob, startUndoJob, startUpdateJob, startVendorScan } from '../jobs/jobRunner.js';
+import { importsRouter } from './imports.js';
 
 export const apiRouter = Router();
+apiRouter.use(importsRouter);
 apiRouter.use(requireShopifySession);
 const shopId = (req: Request) => req.shopSession!.shopId;
 
