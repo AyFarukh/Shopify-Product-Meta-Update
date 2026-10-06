@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import crypto from 'node:crypto';
-import { config } from '../lib/config.js';
+import { config, shopifyConfigured } from '../lib/config.js';
 import { prisma } from '../lib/prisma.js';
 import { validateOAuthHmac } from '../middleware/shopifyAuth.js';
 
@@ -9,6 +9,7 @@ const states = new Map<string,number>();
 const cleanShop = (shop:string) => shop.trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/$/,'');
 
 authRouter.get('/auth', (req,res) => {
+  if (!shopifyConfigured) return res.status(503).send('Shopify credentials are not configured. CSV-only analysis is still available.');
   const shop = cleanShop(String(req.query.shop || ''));
   if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shop)) return res.status(400).send('Invalid shop');
   const state = crypto.randomBytes(24).toString('hex');
