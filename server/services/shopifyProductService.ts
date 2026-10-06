@@ -28,10 +28,34 @@ export async function fetchProductsPage(session: ShopifySession, after?: string|
   return result.data.products;
 }
 
+export async function findProductByHandle(session: ShopifySession, handle: string) {
+  const query = `query ProductByIdentifier($identifier: ProductIdentifierInput!) {
+    productByIdentifier(identifier: $identifier) {
+      id
+      handle
+      title
+      vendor
+      productType
+      status
+      updatedAt
+    }
+  }`;
+  const result = await graphql<{productByIdentifier:{id:string;handle:string;title:string;vendor:string;productType:string;status:string;updatedAt:string}|null}>(
+    session,
+    query,
+    { identifier: { handle } },
+  );
+  return result.data?.productByIdentifier ?? null;
+}
+
+export function buildVendorUpdateVariables(productId: string, vendor: string) {
+  return { product: { id: productId, vendor } };
+}
+
 // SECURITY INVARIANT: this mutation accepts and sends only id + vendor.
 export async function updateProductVendor(session: ShopifySession, productId: string, vendor: string) {
   const mutation = `mutation UpdateProductVendor($product: ProductUpdateInput!) { productUpdate(product: $product) { product { id vendor } userErrors { field message } } }`;
-  const result = await graphql<{productUpdate:{product:{id:string;vendor:string}|null;userErrors:Array<{field:string[];message:string}>}}>(session, mutation, { product: { id: productId, vendor } });
+  const result = await graphql<{productUpdate:{product:{id:string;vendor:string}|null;userErrors:Array<{field:string[];message:string}>}}>(session, mutation, buildVendorUpdateVariables(productId, vendor));
   if (!result.data) throw new Error('Shopify returned no mutation data');
   const errors = result.data.productUpdate.userErrors;
   if (errors.length) throw new Error(errors.map(e=>e.message).join('; '));
