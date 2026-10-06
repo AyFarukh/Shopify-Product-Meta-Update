@@ -8,7 +8,9 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: file:./ci.db
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,8 +20,8 @@ jobs:
         run: npm install
       - name: Generate Prisma client
         run: npm run prisma:generate
-        env:
-          DATABASE_URL: file:./ci.db
+      - name: Prepare test database
+        run: npx prisma db push --skip-generate
       - name: Lint
         run: npm run lint
       - name: Typecheck
