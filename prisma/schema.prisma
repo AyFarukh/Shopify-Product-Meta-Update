@@ -152,6 +152,7 @@ model ImportBatch {
   shopId           String?
   shop             Shop?    @relation(fields: [shopId], references: [id], onDelete: SetNull)
   originalFileName String
+  accessKey        String   @unique
   csvPath          String
   status           String   @default("READY")
   totalRows        Int      @default(0)
