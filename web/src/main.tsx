@@ -69,7 +69,7 @@ function ImportPage(){
   const [busy,setBusy]=useState(false);
   const {job,start}=useJob(()=>{if(summary)void loadRows(summary)});
 
-  const loadRows=async(current=summary)=>{
+  async function loadRows(current=summary){
     if(!current)return;
     try{
       const result=await api<ImportList>(
@@ -81,7 +81,7 @@ function ImportPage(){
       setTotal(result.total);
       setSummary(prev=>prev?{...prev,originalFileName:result.batch.originalFileName,totalRows:result.batch.totalRows,uniqueProducts:result.batch.uniqueProducts,duplicateRows:result.batch.duplicateRows}:prev);
     }catch(e){setError((e as Error).message)}
-  };
+  }
 
   useEffect(()=>{void api<{connected:boolean}>('/api/imports/shopify-status').then(r=>setConnected(r.connected)).catch(()=>setConnected(false))},[]);
   useEffect(()=>{if(summary)void loadRows(summary)},[summary?.id,page,pageSize,q,status]);
