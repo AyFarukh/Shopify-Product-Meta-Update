@@ -20,6 +20,7 @@ model Shop {
   rules       VendorRule[]
   aliases     VendorAlias[]
   settings    AppSettings?
+  importBatches ImportBatch[]
 }
 
 model Product {
@@ -143,4 +144,46 @@ model AppSettings {
   genericVendorsJson   String @default("[\"Dubailist.com\",\"Unknown\",\"Generic\",\"No Vendor\",\"N/A\",\"\"]")
   autoApproveThreshold Int    @default(90)
   pageSize             Int    @default(25)
+}
+
+
+model ImportBatch {
+  id               String   @id @default(cuid())
+  shopId           String?
+  shop             Shop?    @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  originalFileName String
+  csvPath          String
+  status           String   @default("READY")
+  totalRows        Int      @default(0)
+  uniqueProducts   Int      @default(0)
+  duplicateRows    Int      @default(0)
+  error            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  products         ImportProduct[]
+  @@index([shopId])
+  @@index([createdAt])
+}
+
+model ImportProduct {
+  id               String      @id @default(cuid())
+  importBatchId    String
+  importBatch      ImportBatch @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  handle           String
+  title            String
+  currentVendor    String
+  suggestedVendor  String?
+  confidence       Int         @default(0)
+  reason           String
+  source           String
+  status           String
+  approved         Boolean     @default(false)
+  manual           Boolean     @default(false)
+  shopifyGid       String?
+  matchedProductId String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  @@unique([importBatchId, handle])
+  @@index([importBatchId, status])
+  @@index([importBatchId, approved])
 }
